@@ -1,5 +1,5 @@
 import pygame
-import heapq  
+import heapq  # For priority queue functionality
 from config import *
 from typing import List
 from cell import Cell
@@ -7,68 +7,74 @@ from utils import reconstruct_path, manhattan_distance, draw_text_of_running_alg
 
 def solve_maze_A_star(grid_cells: List[Cell], sc: pygame.Surface):
     """
-    Giải mê cung sử dụng thuật toán A* (A-star)
-    
+    Solve the maze using the A* algorithm, which combines features of both Dijkstra's 
+    algorithm and greedy best-first search. The function uses a priority queue to explore the 
+    grid cells and applies the Manhattan distance heuristic to guide the search towards the 
+    destination.
+
     Args:
-        maze: Ma trận mê cung (0: đường đi, 1: tường)
-        start: Vị trí bắt đầu (x, y)
-        end: Vị trí kết thúc (x, y)
-    
+    - grid_cells (List[Cell]): A list of all cells in the maze, each cell is an object with 
+      properties such as neighbors, coordinates, and methods for search and drawing.
+    - sc (pygame.Surface): The pygame screen surface used for drawing the maze and visualizing 
+      the search process.
+
     Returns:
-        List các vị trí tạo thành đường đi từ start đến end
+    - path (List{Cell}): A list of cells representing the solution path from the start to the 
+      destination else None
+    - visited_cells_count (int): The total number of cells visited during the search.
     """
 
-    # Xác định ô bắt đầu và ô kết thúc
+    # Define the start and destination cells
     start_cell = grid_cells[0]
     destination_cell = grid_cells[-1]
 
-    # Biến đếm số ô đã duyệt
+    # Counter to track number of visited cells
     visited_cells_count = 0
 
-    # Hàng đợi ưu tiên cho tập mở (chứa các ô sẽ được đánh giá), mỗi phần tử là (f_cost, id, cell)
+    # Priority queue for the open set (stores cells to be evaluated) (holds tuples of (f_cost, id, cell))
     open_set = []
     heapq.heappush(open_set, (0, id(start_cell), start_cell))
 
-    # G cost: khoảng cách thực tế từ ô bắt đầu đến ô hiện tại
+    # G cost: actual distance from start to current cell
     g_cost = {cell: float('inf') for cell in grid_cells}
-    # Khởi tạo g_cost cho tất cả các ô là vô cùng
-    g_cost[start_cell] = 0  # g_cost của ô bắt đầu là 0
+    # Initialize g_cost for all cells as infinity
+    g_cost[start_cell] = 0  # G cost for the start cell is 0
 
-    # F cost: G cost + heuristic (ước lượng khoảng cách đến đích)
+    # F cost: G cost + heuristic (estimated distance to goal)
     f_cost = {cell: float('inf') for cell in grid_cells}
-    # Khởi tạo f_cost cho tất cả các ô là vô cùng
+    # Initialize f_cost for all cells as infinity
     f_cost[start_cell] = manhattan_distance(start_cell, destination_cell)  
-    # f_cost của ô bắt đầu là heuristic đến ô đích
+    # F cost for the start cell is the heuristic to the destination
 
-    # Khởi tạo parent để truy vết đường đi
+    # Initialize visited set; parent dictionary for path reconstruction
     parent = {}
     parent[start_cell] = None
 
-    # Vòng lặp chính của thuật toán A*
+    # Main loop for A* search
     while open_set:
-        # Lấy ô có f_cost nhỏ nhất ra khỏi hàng đợi ưu tiên
+        # Pop the cell with the lowest f_cost from the priority queue
         _, _, current_cell = heapq.heappop(open_set)
-        # Đánh dấu ô hiện tại là đã duyệt
+        # Mark the current cell as visited
         current_cell.visited = True
         visited_cells_count += 1
 
-        # Nếu đã đến đích, truy vết và trả về đường đi
+        # If we reached the destination, reconstruct the path
         if current_cell == destination_cell:
             path = reconstruct_path(sc, parent, start_cell, destination_cell)
             return path, visited_cells_count
 
-        # Vẽ lại toàn bộ mê cung ở mỗi vòng lặp để giữ các ô luôn hiển thị
+        # Redraw the entire maze on each iteration to keep all cells visible
         for cell in grid_cells:
             cell.draw(sc)
 
-        # Vẽ ô vừa được duyệt
+        # Draw the visited cell
         current_cell.draw(sc)
 
-        # Hiển thị trạng thái hiện tại của thuật toán
+        # Display the current state of the algorithm
         draw_text_of_running_alg(sc, "RUNNING: A Star", FONT, 17, 20, 200, "#FFFFFF")
         draw_text_of_running_alg(sc, "CELLS EXPLORED: " + str(visited_cells_count), FONT, 17, 20, 230, "#FFFFFF")
 
-        # Hiển thị các nút chức năng
+        # Draw buttons
         draw_button(sc, "GENERATE MAZE", 20, 300, BUTTON_COLOR)
         draw_button(sc, "BFS", 20, 400, BUTTON_COLOR)
         draw_button(sc, "DFS", 20, 350, BUTTON_COLOR)
@@ -76,29 +82,29 @@ def solve_maze_A_star(grid_cells: List[Cell], sc: pygame.Surface):
         draw_button(sc, "A STAR", 20, 500, BUTTON_COLOR)
         draw_button(sc, "GBFS", 20, 550, BUTTON_COLOR)
         
-        # Tạm dừng để trực quan hóa thuật toán
+        # Delay for visualization purposes
         pygame.time.delay(60)
         pygame.display.flip()
 
-        # Duyệt các ô hàng xóm của ô hiện tại
+        # Explore neighbors of the current cell
         neighbors = current_cell.check_neighbors_for_search(grid_cells)
         for neighbor in neighbors:
-            # Bỏ qua các ô đã duyệt
+            # Skip visited cells
             if neighbor.visited:
                 continue
 
-            # Tính g_cost tạm thời (khoảng cách từ start đến neighbor qua current_cell)
-            tentative_g_cost = g_cost[current_cell] + 1  # Khoảng cách giữa hai ô kề nhau là 1
-            # Nếu tìm được đường đi ngắn hơn đến neighbor
+            # Tentative g_cost (distance to neighbor through current)
+            tentative_g_cost = g_cost[current_cell] + 1  # Distance between adjacent cells is 1
+            # If a shorter path is found
             if tentative_g_cost < g_cost[neighbor]:
-                # Gán ô cha cho neighbor là current_cell
+                # Set the current cell as the parent of the neighbor
                 parent[neighbor] = current_cell
-                # Cập nhật g_cost cho neighbor
+                # Update g_cost for the neighbor
                 g_cost[neighbor] = tentative_g_cost
-                # Cập nhật f_cost với g_cost mới và heuristic (khoảng cách Manhattan)
+                # Update f_cost with the new g_cost and heuristic (Manhattan distance)
                 f_cost[neighbor] = g_cost[neighbor] + manhattan_distance(neighbor, destination_cell)
 
-                # Thêm neighbor vào open_set nếu chưa có
+                # Add the neighbor to the open_set if it's not already there
                 if neighbor not in [item[2] for item in open_set]:
                     heapq.heappush(open_set, (f_cost[neighbor], id(neighbor), neighbor))
     

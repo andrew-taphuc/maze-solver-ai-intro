@@ -1,218 +1,122 @@
 import pygame
-import sys
-import time
+from cell import Cell
 from config import *
-from utils import generate_maze
-from search.bfs import solve_maze_bfs
-from search.dfs import solve_maze_dfs
-from search.astar import solve_maze_astar
-from search.gbfs import solve_maze_gbfs
-from search.bidirectionalbfs import solve_maze_bidirectional_bfs
+from search.bfs import solve_maze_BFS
+from search.dfs import solve_maze_DFS
+from search.bidirectionalbfs import solve_maze_bidirectional_BFS
+from search.astar import solve_maze_A_star
+from search.gbfs import solve_maze_greedy_bfs
+from utils import reset_cells_visited_state, draw_button, draw_maze, generate_maze, reset_maze, draw_text_of_running_alg
 
 # Initialize Pygame
 pygame.init()
+sc = pygame.display.set_mode(RESOLUTION)
+clock = pygame.time.Clock()  
 
-# Constants
-TILE_SIZE = 40
-ROWS = 15
-COLS = 15
-WIDTH = COLS * TILE_SIZE
-HEIGHT = ROWS * TILE_SIZE + 100  # Thêm không gian cho hướng dẫn
+# Load logo image
+image = pygame.image.load("images/logo.png")
+image = pygame.transform.scale(image, (240, 200))
 
-# Generate initial maze
-MAZE = generate_maze(ROWS, COLS)
-
-# Colors
-WHITE = BACKGROUND_COLOR
-BLACK = WALL_COLOR
-BLUE = CELL_VISITED_COLOR
-GREEN = START_END_CELL_COLOR
-YELLOW = CELL_SOLUTION_COLOR
-
-# Set up screen
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Maze Game")
-
-# Font setup
-pygame.font.init()
-font = pygame.font.SysFont(FONT, 20)
-small_font = pygame.font.SysFont(FONT, 16)
-
-# Game stats
-class GameStats:
-    def __init__(self):
-        self.steps = 0
-        self.start_time = time.time()
-        self.best_time = float('inf')
-        self.mazes_solved = 0
-        self.total_steps = 0
-        self.reset()
-
-    def reset(self):
-        self.steps = 0
-        self.start_time = time.time()
-        self.current_path = set()
-
-    def add_step(self, pos):
-        if pos not in self.current_path:
-            self.steps += 1
-            self.current_path.add(pos)
-
-    def get_time(self):
-        return round(time.time() - self.start_time, 1)
-
-    def update_best_time(self):
-        current_time = self.get_time()
-        if current_time < self.best_time:
-            self.best_time = current_time
-
-    def maze_solved(self):
-        self.mazes_solved += 1
-        self.total_steps += self.steps
-        self.update_best_time()
-
-stats = GameStats()
-
-# Player position
-player_pos = [0, 0]
-goal_pos = [ROWS - 1, COLS - 1]
-
-# Solution path
-solution_path = None
-current_solution_index = 0
-
-clock = pygame.time.Clock()
-
-def draw_instructions():
-    # Vẽ nền cho phần hướng dẫn
-    pygame.draw.rect(screen, WHITE, (0, HEIGHT - 100, WIDTH, 100))
-    
-    # Danh sách các hướng dẫn
-    instructions = [
-        "Hướng dẫn:",
-        "↑↓←→: Di chuyển",
-        "S: Hiển thị đường đi",
-        "A: Tự động giải",
-        "R: Tạo mê cung mới"
-    ]
-    
-    # Vẽ từng dòng hướng dẫn
-    for i, text in enumerate(instructions):
-        text_surface = font.render(text, True, BLACK)
-        screen.blit(text_surface, (10, HEIGHT - 90 + i * 20))
-
-def draw_stats():
-    # Thông tin thống kê
-    stats_texts = [
-        f"Thời gian: {stats.get_time()}s",
-        f"Bước đi: {stats.steps}",
-        f"Mê cung đã giải: {stats.mazes_solved}",
-        f"Thời gian tốt nhất: {stats.best_time if stats.best_time != float('inf') else 'N/A'}s",
-        f"Trung bình bước đi: {round(stats.total_steps/stats.mazes_solved, 1) if stats.mazes_solved > 0 else 0}"
-    ]
-    
-    # Vẽ thống kê ở góc phải
-    for i, text in enumerate(stats_texts):
-        text_surface = small_font.render(text, True, BLACK)
-        screen.blit(text_surface, (WIDTH - 250, HEIGHT - 90 + i * 20))
-
-def draw_maze():
-    for row in range(ROWS):
-        for col in range(COLS):
-            x = col * TILE_SIZE
-            y = row * TILE_SIZE
-            if MAZE[row][col] == 1:
-                pygame.draw.rect(screen, BLACK, (x, y, TILE_SIZE, TILE_SIZE))
-            else:
-                pygame.draw.rect(screen, WHITE, (x, y, TILE_SIZE, TILE_SIZE))
-    # Draw goal
-    gx, gy = goal_pos[1] * TILE_SIZE, goal_pos[0] * TILE_SIZE
-    pygame.draw.rect(screen, GREEN, (gx, gy, TILE_SIZE, TILE_SIZE))
-
-def draw_player():
-    x = player_pos[1] * TILE_SIZE
-    y = player_pos[0] * TILE_SIZE
-    pygame.draw.rect(screen, BLUE, (x, y, TILE_SIZE, TILE_SIZE))
-
-def draw_solution():
-    if solution_path:
-        for x, y in solution_path:
-            pygame.draw.rect(screen, YELLOW, 
-                           (y * TILE_SIZE, x * TILE_SIZE, TILE_SIZE, TILE_SIZE))
-
-def draw_status():
-    status_text = "Chế độ: " + ("Tự động giải" if auto_solve else "Điều khiển thủ công")
-    text_surface = font.render(status_text, True, BLACK)
-    screen.blit(text_surface, (WIDTH - 200, HEIGHT - 90))
+# Create a grid of Cell objects, define the starting cell, destination cell and flags
+grid_cells = [Cell(col, row) for row in range(rows) for col in range(cols)]
+current_cell = grid_cells[0]
+destination_cell = grid_cells[-1]
+stack = []
+maze_generating = False
+maze_complete = False
+searching_completed = False
+running_txt = ""
+cells_cnt = 0
+path = None
 
 # Main game loop
-running = True
-auto_solve = False
-while running:
-    screen.fill(WHITE)
-    draw_maze()
-    draw_solution()
-    draw_player()
-    draw_instructions()
-    draw_status()
-    draw_stats()
-    pygame.display.flip()
+while True:
+    sc.fill(pygame.Color(BACKGROUND_COLOR))
 
+    # Display the logo
+    sc.blit(image, (3, 0))
+
+    # Check for user events
     for event in pygame.event.get():
+        # If the user clicks the window close button, exit.
         if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:  # Press R to regenerate maze
-                MAZE = generate_maze(ROWS, COLS)
-                player_pos = [0, 0]
-                solution_path = None
-                auto_solve = False
-                stats.reset()
-            elif event.key == pygame.K_s:  # Press S to show solution
-                solution_path = solve_maze_bfs(MAZE, (0, 0), (ROWS-1, COLS-1))
-            elif event.key == pygame.K_a:  # Press A to toggle auto solve
-                auto_solve = not auto_solve
-                if auto_solve:
-                    solution_path = solve_maze_bfs(MAZE, (0, 0), (ROWS-1, COLS-1))
-                    current_solution_index = 0
+            exit()
+        # Check if the mouse was clicked.
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # Get the position of the mouse click.
+            mouse_pos = pygame.mouse.get_pos()
 
-    if auto_solve and solution_path:
-        if current_solution_index < len(solution_path):
-            next_pos = solution_path[current_solution_index]
-            player_pos = [next_pos[0], next_pos[1]]
-            stats.add_step(tuple(player_pos))
-            current_solution_index += 1
-            pygame.time.wait(100)
-    else:
-        # Manual movement
-        keys = pygame.key.get_pressed()
-        row, col = player_pos
-        old_pos = player_pos.copy()
-        if keys[pygame.K_UP] and row > 0 and MAZE[row - 1][col] == 0:
-            player_pos[0] -= 1
-        if keys[pygame.K_DOWN] and row < ROWS - 1 and MAZE[row + 1][col] == 0:
-            player_pos[0] += 1
-        if keys[pygame.K_LEFT] and col > 0 and MAZE[row][col - 1] == 0:
-            player_pos[1] -= 1
-        if keys[pygame.K_RIGHT] and col < COLS - 1 and MAZE[row][col + 1] == 0:
-            player_pos[1] += 1
-        
-        if player_pos != old_pos:
-            stats.add_step(tuple(player_pos))
+            # Only respond to mouse clicks if the maze isn't being generated.
+            if not maze_generating:
 
-    # Check win
-    if player_pos == goal_pos:
-        stats.maze_solved()
-        win_text = f"🎉 Chúc mừng! Bạn đã đến đích!\nThời gian: {stats.get_time()}s\nBước đi: {stats.steps}"
-        lines = win_text.split('\n')
-        for i, line in enumerate(lines):
-            text_surface = font.render(line, True, BLACK)
-            screen.blit(text_surface, (WIDTH//2 - 150, HEIGHT - 60 + i * 25))
-        pygame.display.flip()
-        pygame.time.wait(2000)
-        running = False
+                # Check which button was clicked.
+                if maze_gen_btn.collidepoint(mouse_pos):
+                    stack, maze_complete, maze_generating = reset_maze(grid_cells)
+                    searching_completed = False
 
-    clock.tick(10)
+                elif bfs_btn.collidepoint(mouse_pos):
+                    running_txt = "RUNNING: BFS"
+                    searching_completed = False
+                    reset_cells_visited_state(grid_cells)
+                    searching_completed = True
+                    path, cells_cnt = solve_maze_BFS(grid_cells, sc)
 
-pygame.quit()
-sys.exit()
+                elif dfs_btn.collidepoint(mouse_pos):
+                    running_txt = "RUNNING: DFS"
+                    searching_completed = False
+                    reset_cells_visited_state(grid_cells)
+                    path, cells_cnt = solve_maze_DFS(grid_cells, sc)
+                    searching_completed = True
+
+                elif bidirectional_btn.collidepoint(mouse_pos):
+                    running_txt = "RUNNING: Bidirectional BFS"
+                    searching_completed = False
+                    reset_cells_visited_state(grid_cells)
+                    path, cells_cnt = solve_maze_bidirectional_BFS(grid_cells, sc)
+                    searching_completed = True
+
+                elif astar_btn.collidepoint(mouse_pos):
+                    running_txt = "RUNNING: A Star"
+                    searching_completed = False
+                    reset_cells_visited_state(grid_cells)
+                    path, cells_cnt = solve_maze_A_star(grid_cells, sc)
+                    searching_completed = True
+
+                elif gbfs_btn.collidepoint(mouse_pos):
+                    running_txt = "RUNNING: GBFS"
+                    searching_completed = False
+                    reset_cells_visited_state(grid_cells)
+                    path, cells_cnt = solve_maze_greedy_bfs(grid_cells, sc)
+                    searching_completed = True
+    
+    # Draw the buttons for generating the maze and running different algorithms.
+    maze_gen_btn = draw_button(sc, "GENERATE MAZE", 20, 300, BUTTON_COLOR)
+    bfs_btn = draw_button(sc, "BFS", 20, 400, BUTTON_COLOR)
+    dfs_btn = draw_button(sc, "DFS", 20, 350, BUTTON_COLOR)
+    bidirectional_btn = draw_button(sc, "BIDIRECTIONAL BFS", 20, 450, BUTTON_COLOR)
+    astar_btn = draw_button(sc, "A STAR", 20, 500, BUTTON_COLOR)
+    gbfs_btn = draw_button(sc, "GBFS", 20, 550, BUTTON_COLOR)
+
+    # Draw the maze grid with cells, stack (for maze generation), and the start and destination cells.
+    draw_maze(grid_cells, sc, stack, current_cell, destination_cell)
+
+    # If maze generation is active and not yet complete, continue generating the maze.
+    if maze_generating and not maze_complete:
+        draw_text_of_running_alg(sc, "GENERATING MAZE", FONT, 17, 45, 200, "#FFFFFF")
+        current_cell, stack, maze_complete = generate_maze(grid_cells, sc, current_cell, destination_cell, stack)
+
+    # If maze generation is complete, stop generation
+    if maze_complete:
+        maze_generating = False
+
+    # Display the result of the search algorithm
+    if searching_completed and not maze_generating:
+        draw_text_of_running_alg(sc, running_txt, FONT, 17, 20, 200, "#FFFFFF")
+        draw_text_of_running_alg(sc, "CELLS EXPLORED: " + str(cells_cnt), FONT, 17, 20, 230, "#FFFFFF")
+        draw_text_of_running_alg(sc, "SOLUTION LENGTH: " + str(len(path)), FONT, 17, 20, 260, "#FFFFFF")
+    
+    # Update the display and set the frame rate.
+    pygame.display.flip()
+    clock.tick(500)
+    
+    

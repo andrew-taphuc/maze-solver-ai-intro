@@ -6,49 +6,56 @@ from utils import draw_text_of_running_alg, reconstruct_path, draw_button
 
 def solve_maze_BFS(grid_cells: List[Cell], sc: pygame.Surface):
     """
-    Giải mê cung sử dụng thuật toán bfs
-    
+    Solve the maze using Breadth-First Search (BFS).
+
+    The function performs BFS to explore all possible paths from the starting cell (first element in 
+    grid_cells) to the destination cell (last element in grid_cells). It visualizes the search process
+    by updating the display (using pygame) as the search progresses, and once the destination is reached, 
+    the function reconstructs and returns the path from start to destination.
+
     Args:
-        maze: Ma trận mê cung (0: đường đi, 1: tường)
-        start: Vị trí bắt đầu (x, y)
-        end: Vị trí kết thúc (x, y)
-    
+    - grid_cells (List[Cell]): A list of all the cells in the maze, each cell is an object with properties
+      such as neighbors, visited status, and methods to check neighbors and draw itself.
+    - sc (pygame.Surface): The pygame screen surface used for drawing the maze and visualizing the search 
+      process.
+
     Returns:
-        List các vị trí tạo thành đường đi từ start đến end
+    - path (List[Cell]): the path from the starting point of the maze to the destination cell else None
+    - visited_cells_count (int): The total number of cells visited during the search.
     """
-    # Xác định ô bắt đầu và ô kết thúc
+    # Define the start and destination cells
     start_cell = grid_cells[0]
     destination_cell = grid_cells[-1]
 
-    # Khởi tạo các cấu trúc cần thiết cho BFS và truy vết đường đi
+    # Initialize needed structures for BFS and path reconstucting
     queue = []
     parent = {}
     queue.append(start_cell)
     parent[start_cell] = None
 
-    # Biến đếm số ô đã duyệt
+    # Counter to track number of visited cells
     visited_cells_count = 0
 
-    # Vòng lặp chính của BFS
+    # Main BFS loop
     while queue:
-        # Lấy ô đầu tiên ra khỏi hàng đợi và đánh dấu là đã duyệt
+        # Dequeue the first cell and mark it as visited
         current_cell = queue.pop(0)
         current_cell.visited = True
         visited_cells_count += 1
 
-        # Tạm dừng để trực quan hóa thuật toán
+        # Delay for visualization purposes
         pygame.time.delay(60) 
         pygame.display.flip()
 
-        # Vẽ lại toàn bộ mê cung ở mỗi vòng lặp để giữ các ô luôn hiển thị
+        # Redraw the entire maze on each iteration to keep all cells visible
         for cell in grid_cells:
             cell.draw(sc)
 
-        # Hiển thị trạng thái hiện tại của thuật toán
+        # Display current state of the algorithm
         draw_text_of_running_alg(sc, "RUNNING: BFS", FONT, 17, 20, 200, "#FFFFFF")
         draw_text_of_running_alg(sc, "CELLS EXPLORED: " + str(visited_cells_count), FONT, 17, 20, 230, "#FFFFFF")
 
-        # Hiển thị các nút chức năng
+        # Display buttons
         draw_button(sc, "GENERATE MAZE", 20, 300, BUTTON_COLOR)
         draw_button(sc, "BFS", 20, 400, BUTTON_COLOR)
         draw_button(sc, "DFS", 20, 350, BUTTON_COLOR)
@@ -56,22 +63,22 @@ def solve_maze_BFS(grid_cells: List[Cell], sc: pygame.Surface):
         draw_button(sc, "A STAR", 20, 500, BUTTON_COLOR)
         draw_button(sc, "GBFS", 20, 550, BUTTON_COLOR)
 
-        # Vẽ ô vừa được duyệt
+        # Draw the visited cell
         current_cell.draw(sc)
 
-        # Kiểm tra nếu ô hiện tại là ô kết thúc
+        # Check if the current cell is the destination
         if current_cell == destination_cell:
-            # Nếu đã đến đích, truy vết và trả về đường đi
+            # If destination is reached, reconstruct and return the path
             path = reconstruct_path(sc, parent, start_cell, destination_cell)
             return path, visited_cells_count
 
-        # Kiểm tra các ô hàng xóm và mở rộng tìm kiếm BFS
+        # Check neighbors and expand the BFS search
         neighbors = current_cell.check_neighbors_for_search(grid_cells)
         for neighbor in neighbors:
             if not neighbor.visited:
-                # Thêm ô hàng xóm vào hàng đợi để duyệt sau
+                # Enqueue the neighbor for later exploration
                 queue.append(neighbor)
-                # Gán ô hiện tại là cha của ô hàng xóm này
+                # Set current cell as the parent of this neighbor
                 parent[neighbor] = current_cell 
     
     return None, visited_cells_count
