@@ -1,26 +1,48 @@
 import pygame
 import sys
 from config import *
+import random
 
 # Initialize Pygame
 pygame.init()
 
 # Constants
 TILE_SIZE = 40
-MAZE = [
-    [0, 1, 0, 0, 0, 0],
-    [0, 1, 0, 1, 1, 0],
-    [0, 0, 0, 0, 1, 0],
-    [1, 1, 1, 0, 1, 0],
-    [0, 0, 0, 0, 1, 0],
-    [0, 1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 0, 0]
-]
-
-ROWS = len(MAZE)
-COLS = len(MAZE[0])
+ROWS = 15
+COLS = 15
 WIDTH = COLS * TILE_SIZE
 HEIGHT = ROWS * TILE_SIZE
+
+def generate_maze(rows, cols):
+    # Initialize maze with walls
+    maze = [[1 for _ in range(cols)] for _ in range(rows)]
+    
+    def carve_path(x, y):
+        maze[y][x] = 0
+        directions = [(0, 2), (2, 0), (0, -2), (-2, 0)]
+        random.shuffle(directions)
+        
+        for dx, dy in directions:
+            new_x, new_y = x + dx, y + dy
+            if (0 <= new_x < cols and 0 <= new_y < rows and 
+                maze[new_y][new_x] == 1):
+                # Carve path between current cell and new cell
+                maze[y + dy//2][x + dx//2] = 0
+                carve_path(new_x, new_y)
+    
+    # Start from a random even position
+    start_x = random.randrange(0, cols, 2)
+    start_y = random.randrange(0, rows, 2)
+    carve_path(start_x, start_y)
+    
+    # Ensure start and end are accessible
+    maze[0][0] = 0
+    maze[rows-1][cols-1] = 0
+    
+    return maze
+
+# Generate initial maze
+MAZE = generate_maze(ROWS, COLS)
 
 # Colors
 WHITE = BACKGROUND_COLOR
@@ -69,6 +91,10 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:  # Press R to regenerate maze
+                MAZE = generate_maze(ROWS, COLS)
+                player_pos = [0, 0]
 
     # Movement
     keys = pygame.key.get_pressed()
