@@ -1,14 +1,32 @@
 import pygame
-from config import RESOLUTION, TILE_SIZE, MAZE_OFFSET, START_END_CELL_COLOR, CELL_GENERATED_COLOR, CELL_VISITED_COLOR, CELL_SOLUTION_COLOR, WALL_COLOR, cols, rows
+from config import *
 
 pygame.init()
 sc = pygame.display.set_mode(RESOLUTION)
 clock = pygame.time.Clock()
 
 class Cell:
+    """
+    Represents a single cell in the maze with coordinates, walls, and states for maze generation and solving.
 
+    Attributes:
+    - x (int): The x-coordinate of the cell in the grid.
+    - y (int): The y-coordinate of the cell in the grid.
+    - walls (dict): A dictionary indicating whether each wall ('top', 'right', 'bottom', 'left') exists (True)
+      or has been removed (False).
+    - generated (bool): Indicates if the cell has been visited during maze generation.
+    - visited (bool): Indicates if the cell has been visited during the search/solving process.
+    - is_solution (bool): Marks if the cell is part of the final solution path.
+    """
 
     def __init__(self, x, y):
+        """
+        Initializes a Cell with specific x, y coordinates and sets up its walls and other states.
+
+        Args:
+        - x (int): The x-coordinate of the cell in the maze grid.
+        - y (int): The y-coordinate of the cell in the maze grid.
+        """
 
         # Grid cells position
         self.x, self.y = x, y
@@ -23,14 +41,22 @@ class Cell:
         self.is_solution = False
 
     def draw_current_cell(self):
-
+        """
+        Highlights the current cell by drawing a rectangle on the screen with a distinct color.
+        """
 
         # Calculate the position of the cell in the display based on grid coordinates
         x, y = self.x * TILE_SIZE + MAZE_OFFSET, self.y * TILE_SIZE + 2
         pygame.draw.rect(sc, pygame.Color(START_END_CELL_COLOR), (x, y, TILE_SIZE - 2, TILE_SIZE - 2))
 
     def draw(self, sc: pygame.Surface):
+        """
+        Draws the cell on the screen based on its current state, including walls and whether 
+        it's generated, visited, or part of the solution.
 
+        Args:
+        - sc (pygame.Surface): The Pygame surface on which the cell is drawn.
+        """
 
         # Calculate the position of the cell in the display based on grid coordinates
         x, y = self.x * TILE_SIZE + MAZE_OFFSET, self.y * TILE_SIZE + 2
@@ -54,7 +80,17 @@ class Cell:
             pygame.draw.line(sc, WALL_COLOR, (x, y + TILE_SIZE), (x, y), 5)
     
     def check_cell(self, grid_cells, x, y):
-
+        """
+        Checks if a cell exists at the given (x, y) coordinates and returns the cell if valid.
+        
+        Args:
+        - grid_cells (List[Cell]): List of all cells in the maze grid.
+        - x (int): The x-coordinate of the cell to check.
+        - y (int): The y-coordinate of the cell to check.
+        
+        Returns:
+        - Cell or False: The cell at the given coordinates if valid, otherwise False.
+        """
 
         # Lambda function to calculate the index of the cell in the 1D list of grid cells.
         find_index = lambda x, y: x + y * cols
@@ -67,6 +103,18 @@ class Cell:
         return grid_cells[find_index(x, y)]
     
     def check_neighbors_for_maze_gen(self, grid_cells):
+        """
+        Finds and returns a list of unvisited neighboring cells for maze generation.
+        
+        Args:
+        - grid_cells (List[Cell]): List of all cells in the maze grid.
+        
+        Returns:
+        - neighbors (List[Cell]): A list of neighboring cells that have not yet been generated.
+        
+        Neighbors are identified by checking adjacent cells (top, right, bottom, left).
+        If no unvisited neighbors are found, it returns False.
+        """
 
         neighbors = []
 
@@ -93,6 +141,17 @@ class Cell:
             return False 
     
     def check_neighbors_for_search(self, grid_cells):
+        """
+        Finds and returns a list of unvisited neighboring cells for maze-solving.
+
+        Args:
+        - grid_cells (List[Cell]): List of all cells in the maze grid.
+
+        Returns:
+        - neighbors: A list of unvisited neighboring cells that can be explored in the maze-solving process.
+        
+        This method checks for neighbors that have no walls separating them from the current cell, ensuring that they are reachable.
+        """
 
         neighbors = []
 
