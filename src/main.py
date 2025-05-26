@@ -1,5 +1,6 @@
 import pygame
 import sys
+from config import *
 
 # Initialize Pygame
 pygame.init()
@@ -22,10 +23,10 @@ WIDTH = COLS * TILE_SIZE
 HEIGHT = ROWS * TILE_SIZE
 
 # Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-BLUE = (0, 0, 255)
-GREEN = (0, 200, 0)
+WHITE = BACKGROUND_COLOR
+BLACK = WALL_COLOR
+BLUE = CELL_VISITED_COLOR
+GREEN = START_END_CELL_COLOR
 
 # Set up screen
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
