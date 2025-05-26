@@ -10,30 +10,30 @@ def solve_maze_dfs(grid_cells, start, end):
     Returns:
         List các cell tạo thành đường đi từ start đến end, hoặc None nếu không có đường đi
     """
-    stack = []
-    parent = {}
+    if start == end:
+        return [start]
     
-    stack.append(start)
-    parent[start] = None
+    for cell in grid_cells:
+        cell.visited = False
+    
+    stack = [start]
+    parent = {start: None}
     start.visited = True
     
     while stack:
-        current_cell = stack.pop()
+        current = stack.pop()
         
-        if current_cell == end:
+        if current == end:
             path = []
-            while current_cell is not None:
-                path.append(current_cell)
-                current_cell = parent[current_cell]
-            path.reverse()
-            return path
+            while current:
+                path.append(current)
+                current = parent[current]
+            return path[::-1]
         
-        neighbors = current_cell.check_neighbors_for_search(grid_cells)
-        
-        for neighbor in neighbors:
+        for neighbor in current.check_neighbors_for_search(grid_cells):
             if not neighbor.visited:
                 neighbor.visited = True
-                parent[neighbor] = current_cell
+                parent[neighbor] = current
                 stack.append(neighbor)
     
     return None
